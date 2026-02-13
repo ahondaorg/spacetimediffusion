@@ -1,8 +1,9 @@
 # Space Time Diffusion
 
 **Project description** 
+
 Some of the latest image2image generation models are capable to convert image to different style, replace elements while maintain original image contents consistency with combining VLM(Vision Language Model). 
-This proof of concept project is simplified and abstracted version of such latest image2image method. It utilizes VLM functionality to generate image-generation prompts with different contextual framing, **while preserving the content** of the original image.
+This proof of concept project is simplified and abstracted version of such latest image2image method. It utilizes VLM functionality to generate image-generation prompts with different contextual framing, while preserving the content of the original image.
 To orchestrate interactions between the VLM and ComfyUI, n8n is used in this Project.
 
 

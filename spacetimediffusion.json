@@ -1,0 +1,489 @@
+{
+  "name": "spacetimediffusion",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "spacetimediffusion",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -160,
+        16
+      ],
+      "id": "7b4fb1f5-03b9-45f2-9023-c3e185c3c0ed",
+      "name": "Webhook",
+      "webhookId": "243cf446-6a6a-45a7-abce-f3a63a0c541f"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2528,
+        -112
+      ],
+      "id": "7ff5e135-6921-4f27-bbcf-2d94e2e8ba10",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = items[0].json;\n\n// Build the prompt text safely with template literals\nconst userPrompt = `ORIGINAL SCENE: ${data.description}\n\nTRANSFORM THIS TO:\n- Time Period: ${data.time_period}\n- Geographic Area: ${data.area}\n\nTASK:\nRewrite the original scene to short and fit the specified time period and geographic area setting. While empahsize feature of targetted time period and geographic area setting, maintain architecture, clothing, technology, and cultural elements appropriately. Maintain the core composition,mood. Keep image type like photo,illustration, etc. If the original elements does not fits to target time period and geographic area, modify or omit them. \n\nOUTPUT FORMAT:\nProvide ONLY the final image generation prompt. Include: subject description, environment, style references, lighting, and era-specific details. No explanations.`;\n\n// Create the payload object\nconst payload = {\n  model: data.model_name,\n  messages: [\n    {\n      role: \"system\",\n      content: \"You are an expert prompt engineer specializing in historical and futuristic adaptations. You create detailed image generation prompts for AI art tools (Stable Diffusion/Midjourney).\"\n    },\n    {\n      role: \"user\",\n      content: userPrompt\n    }\n  ],\n  max_tokens: 1000,\n  temperature: 0.8\n};\n\n// Return as stringified JSON\nreturn {\n  json: {\n    llm_backend_url: data.llm_backend_url,\n    payload_string: JSON.stringify(payload)\n  }\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        736,
+        16
+      ],
+      "id": "4b08fa49-0c50-4d33-99ab-94adb924de8c",
+      "name": "Rewrite prompt for LLM",
+      "notesInFlow": true,
+      "notes": "Make prompt JSON for LLM to rewrite the image description fit to time and space  "
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.comfyui_url }}/prompt",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "cc03f73f-b050-47e9-8f56-81f022d7cc41",
+      "name": "ComfyUI Prompt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1424,
+        16
+      ],
+      "notesInFlow": true,
+      "notes": "Add the image generation workflow to the queue"
+    },
+    {
+      "parameters": {
+        "url": "={{$('Webhook').first().json.body.comfyuiUrl}}/history/{{ $('ComfyUI Prompt').item.json.prompt_id }}\n",
+        "options": {}
+      },
+      "id": "9af727af-6bbe-4887-934b-be2fbeb7dbd5",
+      "name": "ComfyUI HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1632,
+        16
+      ],
+      "notesInFlow": true,
+      "notes": "Check the status of the image generation workflow"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          },
+          "conditions": [
+            {
+              "id": "7232dade-db0e-4b05-802d-6e193ce5136c",
+              "leftValue": "={{ $('ComfyUI HTTP Request').item.json[$('ComfyUI Prompt').item.json.prompt_id].status.status_str }}",
+              "rightValue": "success",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "296ad112-99ad-4a79-bf65-697e9245be58",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        -64
+      ],
+      "notesInFlow": true,
+      "notes": "check if image generation sucessed"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Webhook').item.json.body.comfyuiUrl }}/view\n",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "filename",
+              "value": "={{$json[$node[\"ComfyUI Prompt\"].json.prompt_id].outputs[Object.keys($json[$node[\"ComfyUI Prompt\"].json.prompt_id].outputs)[0]].images[0].filename}}"
+            },
+            {
+              "name": "subfolder",
+              "value": "={{$json[$node[\"ComfyUI Prompt\"].json.prompt_id].outputs[Object.keys($json[$node[\"ComfyUI Prompt\"].json.prompt_id].outputs)[0]].images[0].subfolder}}"
+            },
+            {
+              "name": "type",
+              "value": "={{$json[$node[\"ComfyUI Prompt\"].json.prompt_id].outputs[Object.keys($json[$node[\"ComfyUI Prompt\"].json.prompt_id].outputs)[0]].images[0].type}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "80a996ff-67ba-4624-b54e-43589f13b58d",
+      "name": "ComfyUI image retrieve",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        -112
+      ],
+      "notesInFlow": true,
+      "notes": "Retrieve the generated image"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the rewritten prompt text from earlier in the workflow\n// This references the LLM node that rewrote the text\nconst promptText = $('Make ComfyUI workflow').first().json.generation_prompt;\n\n// Get binary image data from \"ComfyUI image retrieve\" node\n// n8n stores binary data in the binary property\nconst binaryEntry = items[0].binary ? Object.values(items[0].binary)[0] : null;\n\nif (!binaryEntry) {\n  return [{\n    json: {\n      prompt: promptText,\n      image_base64: null,\n      error: \"No image data received\"\n    }\n  }];\n}\n\n// Convert binary buffer to base64 string\nconst base64Image = binaryEntry.data;\nconst mimeType = binaryEntry.mimeType || 'image/png';\n\nreturn [{\n  json: {\n    prompt: promptText,\n    image_base64: `data:${mimeType};base64,${base64Image}`\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2304,
+        -112
+      ],
+      "id": "49540b38-e42f-432b-9d17-b2a411e92692",
+      "name": "prepare responses"
+    },
+    {
+      "parameters": {
+        "content": "## VLM Image analysis and prompt generation",
+        "height": 400,
+        "width": 1088
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        16,
+        -240
+      ],
+      "id": "f2d19890-611d-4632-a101-1989b7085ab5",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## ComffyUI image generation\n",
+        "height": 576,
+        "width": 1088,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        -240
+      ],
+      "id": "99e260e9-d812-461b-9b69-5fbd90bdc36f",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const content = $input.first().json.choices[0].message.content;\n\nconst trimmed_content = content\n  .replace(/<think\\b[^>]*>[\\s\\S]*?<\\/think>/gi, '')\n  .replace(/<thinking\\b[^>]*>[\\s\\S]*?<\\/thinking>/gi, '')\n  .replace(/<thought\\b[^>]*>[\\s\\S]*?<\\/thought>/gi, '')  \n  .replace(/<analysis\\b[^>]*>[\\s\\S]*?<\\/analysis>/gi, '')\n  .replace(/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/g, '')  \n  .replace(/\\\\/g, '\\\\\\\\')  \n  .replace(/\"/g, '\\\\\"')   \n  .trim()\n  .replace(/\\n{3,}/g, '\\\\n\\\\n'); \n\n\nreturn {json:{content: trimmed_content} };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        288,
+        16
+      ],
+      "id": "2d135b85-29bb-435a-b06d-5efcba4db9e7",
+      "name": "Remove reasoning output",
+      "notesInFlow": true,
+      "notes": "Remove reasoning output"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.body.llm_backend_url }}/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $json.body.model_name }}\",\n  \"messages\": [\n    {\n      \"role\": \"user\",\n      \"content\": [\n        {\n          \"type\": \"text\",\n          \"text\": \"Describe this image in simple text. Focus on: main subjects, setting/environment, colors, lighting, mood, objects, and any text visible. Be specific and comprehensive. Do not use any special character, ornaments for the text.\"\n        },\n        {\n          \"type\": \"image_url\",\n          \"image_url\": {\n            \"url\": \"{{ $json.body.image_base64 }}\",\n            \"detail\": \"high\"\n          }\n        }\n      ]\n    }\n  ],\n  \"max_tokens\": 800\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        64,
+        16
+      ],
+      "id": "1dca6f3c-5e80-49fe-a913-0016d4cfd5ff",
+      "name": "VLM image description HTTP Request",
+      "notesInFlow": true,
+      "notes": "Get image description from VLM"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.llm_backend_url }}/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.payload_string }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        960,
+        16
+      ],
+      "id": "8f39e577-edbd-4f52-a009-e0adacc06452",
+      "name": "LLM Req rewrite text",
+      "notesInFlow": true,
+      "notes": "Request LLM to rewrite text"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"description\": \"{{ $json.content }}\",\n  \"time_period\": \"{{ $('Webhook').item.json.body.time_period }}\" ,\n  \"area\":  \"{{ $('Webhook').item.json.body.area }}\" ,\n  \"llm_backend_url\":\"{{ $('Webhook').item.json.body.llm_backend_url }}\",\n  model_name:    {{ $('Webhook').item.json.body.model_name }} \n}\n\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        512,
+        16
+      ],
+      "id": "b8f38c1d-e878-41bf-80bd-165a0fdeccaa",
+      "name": "Format Response",
+      "notesInFlow": true,
+      "notes": "Format response from VLM in JSON "
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Get inputs from webhook JSON body\n//const input = $input.first().json.body || $input.first().json;\nconst content = $input.first().json.choices[0].message.content || \"A beautiful landscape\";\nconst modelname = $('Webhook').first().json.body.comfyuimodelName || \"Link to checkpoints/v1-5-pruned-emaonly-fp16.safetensors\";\nconst comfyui_url = $('Webhook').first().json.body.comfyuiUrl || \"http://localhost:8188\";\n\n\nconst positiveprompt = content\n  .replace(/<think\\b[^>]*>[\\s\\S]*?<\\/think>/gi, '')\n  .replace(/<thinking\\b[^>]*>[\\s\\S]*?<\\/thinking>/gi, '')\n  .replace(/<thought\\b[^>]*>[\\s\\S]*?<\\/thought>/gi, '')  \n  .replace(/<analysis\\b[^>]*>[\\s\\S]*?<\\/analysis>/gi, '')\n  .replace(/[\\x00-\\x08\\x0B\\x0C\\x0E-\\x1F\\x7F]/g, '')  \n  .replace(/\\\\/g, '\\\\\\\\')  \n  .replace(/\"/g, '\\\\\"')   \n  .trim()\n  .replace(/\\n{3,}/g, '\\\\n\\\\n'); \n\nconst seednumber = Math.floor(Math.random() * 1000000000000000);\n\nconst prompt =\n//BEGINING - PASTE HERE THE COMFYUI JSON WORKFLOW (and insert the above variable call)\n{\n  \"3\": {\n    \"inputs\": {\n      \"seed\": seednumber,\n      \"steps\": 25,\n      \"cfg\": 12,\n      \"sampler_name\": \"euler_ancestral\",\n      \"scheduler\": \"normal\",\n      \"denoise\": 1,\n      \"model\": [\n        \"4\",\n        0\n      ],\n      \"positive\": [\n        \"6\",\n        0\n      ],\n      \"negative\": [\n        \"7\",\n        0\n      ],\n      \"latent_image\": [\n        \"5\",\n        0\n      ]\n    },\n    \"class_type\": \"KSampler\",\n    \"_meta\": {\n      \"title\": \"KSampler\"\n    }\n  },\n  \"4\": {\n    \"inputs\": {\n      \"ckpt_name\": modelname\n    },\n    \"class_type\": \"CheckpointLoaderSimple\",\n    \"_meta\": {\n      \"title\": \"Load Checkpoint\"\n    }\n  },\n  \"5\": {\n    \"inputs\": {\n      \"width\": 512,\n      \"height\": 512,\n      \"batch_size\": 1\n    },\n    \"class_type\": \"EmptyLatentImage\",\n    \"_meta\": {\n      \"title\": \"Empty Latent Image\"\n    }\n  },\n  \"6\": {\n    \"inputs\": {\n      \"text\": positiveprompt,\n      \"clip\": [\n        \"4\",\n        1\n      ]\n    },\n    \"class_type\": \"CLIPTextEncode\",\n    \"_meta\": {\n      \"title\": \"CLIP Text Encode (Prompt)\"\n    }\n  },\n  \"7\": {\n    \"inputs\": {\n      \"text\": \"\",\n      \"clip\": [\n        \"4\",\n        1\n      ]\n    },\n    \"class_type\": \"CLIPTextEncode\",\n    \"_meta\": {\n      \"title\": \"CLIP Text Encode (Prompt)\"\n    }\n  },\n  \"8\": {\n    \"inputs\": {\n      \"samples\": [\n        \"3\",\n        0\n      ],\n      \"vae\": [\n        \"4\",\n        2\n      ]\n    },\n    \"class_type\": \"VAEDecode\",\n    \"_meta\": {\n      \"title\": \"VAE Decode\"\n    }\n  },\n  \"9\": {\n    \"inputs\": {\n      \"filename_prefix\": \"ComfyUI\",\n      \"images\": [\n        \"8\",\n        0\n      ]\n    },\n    \"class_type\": \"SaveImage\",\n    \"_meta\": {\n      \"title\": \"Save Image\"\n    }\n  }\n}\n//END - PASTE HERE THE COMFYUI JSON WORKFLOW \n;\n\n//const jsonData = {\"prompt\": prompt};\n//return [{ json: jsonData }];\nreturn [{ json: { prompt: prompt, comfyui_url: comfyui_url,generation_prompt: positiveprompt } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        16
+      ],
+      "id": "17871745-8fb4-4659-b2d3-add0de79875c",
+      "name": "Make ComfyUI workflow",
+      "notesInFlow": true,
+      "notes": "Make  ComfyUI workflow with rewritten text"
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "id": "b1cd6789-8bca-4dbd-a2b2-0610f257e2e3",
+      "name": "Wait for image generation",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2080,
+        112
+      ],
+      "webhookId": "30c89984-156e-4343-b60f-6ad68b4abd9f"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "VLM image description HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rewrite prompt for LLM": {
+      "main": [
+        [
+          {
+            "node": "LLM Req rewrite text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ComfyUI Prompt": {
+      "main": [
+        [
+          {
+            "node": "ComfyUI HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ComfyUI HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "ComfyUI image retrieve",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait for image generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ComfyUI image retrieve": {
+      "main": [
+        [
+          {
+            "node": "prepare responses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare responses": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Remove reasoning output": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "VLM image description HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Remove reasoning output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Req rewrite text": {
+      "main": [
+        [
+          {
+            "node": "Make ComfyUI workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Response": {
+      "main": [
+        [
+          {
+            "node": "Rewrite prompt for LLM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make ComfyUI workflow": {
+      "main": [
+        [
+          {
+            "node": "ComfyUI Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for image generation": {
+      "main": [
+        [
+          {
+            "node": "ComfyUI HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "754d950c-0035-455a-8ae5-3417f162311a",
+  "meta": {
+    "instanceId": "64f841d471d61ad45e1961511667e3a46e80751e73aa3ac44429d0e2f8625a1d"
+  },
+  "id": "OyKSL8J9bX8UOGsC",
+  "tags": []
+}

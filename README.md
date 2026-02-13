@@ -9,7 +9,7 @@ To orchestrate interactions between the VLM and ComfyUI, n8n is used in this Pro
 This workflow has following steps
 1. Analyze image with VLM's capability (img2txt)
 2. Rewrite the image contents description or image generation prompt which aligns to user chosen time period and geographical area with using LLM's capability(LLM)
-3. 1. Generate a new image from the prompt obtained in step 2. Unlike standard image-to-image methods, this process is text-to-image (**txt2img**), not image-to-image.
+3. Generate a new image from the prompt obtained in step 2. Unlike standard image-to-image methods, this process is text-to-image (**txt2img**), not image-to-image.
 
 **Requirement**
 - n8n

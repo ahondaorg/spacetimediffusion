@@ -35,6 +35,9 @@ This workflow intend to only as proof of concept, not for production use.
 
 **Screenshots**
 ![screenshot](screenshot/stoneage_europe.png)
+--
 ![screenshot](screenshot/medieval_europe.png)
+--
 ![screenshot](screenshot/contemporaty_africa.png)
+--
 ![screenshot](screenshot/23rd_asia.png)

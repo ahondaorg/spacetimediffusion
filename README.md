@@ -2,7 +2,7 @@
 
 **Project description** 
 
-Some of the latest image2image generation models are capable to convert image to different style, replace elements while maintain original image contents consistency with combining VLM(Vision Language Model). 
+Some of the latest image generation models are capable to convert image to different style, replace elements while maintain original image contents consistency with combining VLM(Vision Language Model), so called image2image. 
 This proof of concept project is simplified and abstracted version of such latest image2image method. It utilizes VLM functionality to generate image-generation prompts with different contextual framing, while preserving the content of the original image.
 To orchestrate interactions between the VLM and ComfyUI, n8n is used in this Project.
 
@@ -10,12 +10,12 @@ To orchestrate interactions between the VLM and ComfyUI, n8n is used in this Pro
 This workflow has following steps
 1. Analyze image with VLM's capability (img2txt)
 2. Rewrite the image contents description or image generation prompt which aligns to user chosen time period and geographical area with using LLM's capability(LLM)
-3. Generate a new image from the prompt obtained in step 2. Unlike standard image-to-image methods, this process is text-to-image (**txt2img**), not image-to-image.
+3. Generate a new image from the prompt obtained in step 2. Unlike standard image-to-image methods, this process is text-to-image (txt2img), not image-to-image.
 
 **Requirement**
 - n8n
-- OpenAI compatible local LLM endpoint (**note: this workflow does not implement API key support for online LLM services**)
-- Vision capable LLM model(VLM, such gemma3, Qwen3-VL). For better context understanding, reasoning model is recommended.
+- OpenAI compatible local LLM endpoint (note: this workflow does not implement API key support for online LLM services)
+- Vision capable LLM model(VLM, such gemma3, Qwen3-VL). For better context understanding, reasoning model is recommended.(In this workflow, VLM was used also for propmt re-writing)
 - ComfyUI and Stable Diffusion based model
 - A Modern Web browser
 

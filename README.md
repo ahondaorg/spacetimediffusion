@@ -21,7 +21,7 @@ This workflow has following steps
 
 **File description**
 - index.html: Front-end interface for interacting with the n8n workflow
-- space_time_diffusion.json: n8n workflow
+- space_time_diffusion.json: n8n workflow. For understanding of lower level data communication, used HTTP requst node instaed "AI" nodes.
 
 **Usage**
 1. import n8n workflow on n8n and execute the workflow
